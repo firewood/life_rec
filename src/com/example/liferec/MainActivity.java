@@ -1,17 +1,35 @@
 package com.example.liferec;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
+
 import android.os.Bundle;
+import android.os.Handler;
 import android.app.Activity;
+import android.app.Application;
 import android.content.Intent;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements Runnable {
 
 	public static final String LOGTAG = "LIFEREC";
 
+	
+	private ServerSocket mServer;
+    private Socket mSocket;
+    private int port = 1337;
+    volatile Thread runner = null;
+    Handler mHandler = new Handler();	
+	
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -25,7 +43,14 @@ public class MainActivity extends Activity {
 	             startActivity(intent);
 	        }
 	      });
-		
+
+	      
+	      
+			if(runner == null){
+	            runner = new Thread(this);
+	            runner.start();
+	        }
+	      
 		
 		
 	}
@@ -44,5 +69,41 @@ public class MainActivity extends Activity {
 		}
 */
 
+	
+	
+	@Override
+	public void run() {
+
+		Log.v(LOGTAG, "thread start");
+
+		
+		try {
+			mServer = new ServerSocket(port);
+			mSocket = mServer.accept();
+			BufferedReader in = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
+			String message;
+			final StringBuilder messageBuilder = new StringBuilder();
+			while ((message = in.readLine()) != null) {
+				messageBuilder.append(message);
+			}
+			mHandler.post(new Runnable() {
+				@Override
+				public void run() {
+
+					Log.v(LOGTAG, "RCVD:" + messageBuilder.toString());
+					
+				}
+			});
+			runner.start();
+			
+		} catch (IOException e) {
+			Log.v(LOGTAG, "FAILED to listen");
+
+			e.printStackTrace();
+		}
+		
+	}
+	
+	
 }
 
