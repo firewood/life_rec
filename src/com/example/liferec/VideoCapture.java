@@ -4,27 +4,26 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.app.Activity;
-import android.content.pm.ActivityInfo;
 import android.hardware.Camera;
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.Environment;
+import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.view.View.OnClickListener;
 
-public class VideoCapture extends Activity implements OnClickListener, SurfaceHolder.Callback {
+public class VideoCapture extends Activity implements SurfaceHolder.Callback {
 
 	public static final String LOGTAG = "LIFEREC";
 
-	private MediaRecorder recorder;
+	private MediaRecorder recorder = null;
 	private SurfaceHolder holder;
 	private CamcorderProfile camcorderProfile;
 	private Camera camera;	
@@ -32,7 +31,10 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 	boolean recording = false;
 	boolean usecamera = true;
 	boolean previewRunning = false;
-	
+
+	private Timer timer = null;
+	private Handler handler;
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -51,12 +53,15 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 		holder.addCallback(this);
 		holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
+/*
 		cameraView.setClickable(true);
-		cameraView.setOnClickListener(this);
-	}
-
-	public void onClick(View v) {
-		toggleRecording();
+		cameraView.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				Log.v(LOGTAG, "clicked");
+			}
+		});
+*/
 	}
 
 	private String getVideoFilename(String extension) {
@@ -68,13 +73,15 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 		path += extension;
 		return path;
 	}
-	
-	private void prepareRecorder() {
-		App app = (App)getApplication();
 
-		recorder = new MediaRecorder();
+	private void prepareRecorder() {
+		if (recorder == null) {
+			recorder = new MediaRecorder();
+		} else {
+			recorder.reset();
+		}
 		recorder.setPreviewDisplay(holder.getSurface());
-		
+
 		if (usecamera) {
 			camera.unlock();
 			recorder.setCamera(camera);
@@ -84,14 +91,20 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 		recorder.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
 
 		recorder.setProfile(camcorderProfile);
+	}
 
+	public void startRecording() {
+		if (recording) {
+			return;
+		}
+
+		prepareRecorder();
+		
 		if (camcorderProfile.fileFormat == MediaRecorder.OutputFormat.THREE_GPP) {
     		recorder.setOutputFile(getVideoFilename("3gp"));
 		} else {
     		recorder.setOutputFile(getVideoFilename("mp4"));
 		}
-		//recorder.setMaxDuration(50000); // 50 seconds
-		//recorder.setMaxFileSize(5000000); // Approximately 5 megabytes
 
 		try {
 			recorder.prepare();
@@ -102,28 +115,48 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 			e.printStackTrace();
 			finish();
 		}
-	}
 
-	public void startRecording() {
 		recording = true;
 		recorder.start();
 		Log.v(LOGTAG, "Recording Started");
+
+		if (timer == null) {
+			handler = new Handler();
+			timer = new Timer(true);
+			timer.schedule(new TimerTask() {
+				@Override
+				public void run() {
+					 handler.post( new Runnable() {					
+						 public void run() {
+							Log.v(LOGTAG, "timer");
+							if (recording) {
+								stopRecording();
+								startRecording();
+							}
+						 }
+					 });
+				}
+			}, 60000, 60000);
+		}
 	}
-	
+
 	public void stopRecording() {
+		if (!recording) {
+			return;
+		}
+
 		recorder.stop();
+
 		if (usecamera) {
 			try {
 				camera.reconnect();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-		}			
-		// recorder.release();
+		}
+
 		recording = false;
 		Log.v(LOGTAG, "Recording Stopped");
-		// Let's prepareRecorder so we can record again
-		prepareRecorder();
 	}
 
 	public void toggleRecording() {
@@ -144,13 +177,11 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 				camera.setPreviewDisplay(holder);
 				camera.startPreview();
 				previewRunning = true;
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				Log.e(LOGTAG,e.getMessage());
 				e.printStackTrace();
 			}	
 		}		
-		
 	}
 
 	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -172,26 +203,33 @@ public class VideoCapture extends Activity implements OnClickListener, SurfaceHo
 				camera.setPreviewDisplay(holder);
 				camera.startPreview();
 				previewRunning = true;
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				Log.e(LOGTAG,e.getMessage());
 				e.printStackTrace();
 			}	
-			
-			prepareRecorder();	
+
+			startRecording();
 		}
 	}
 
 	public void surfaceDestroyed(SurfaceHolder holder) {
 		Log.v(LOGTAG, "surfaceDestroyed");
+
+		// delete timer
+		if (timer != null) {
+			timer.cancel();
+			timer = null;
+		}
+
+		// delete MediaRecorder
 		if (recording) {
-			recorder.stop();
+			recorder.reset();
 			recording = false;
 		}
 		recorder.release();
+
 		if (usecamera) {
 			previewRunning = false;
-			//camera.lock();
 			camera.release();
 		}
 		finish();
