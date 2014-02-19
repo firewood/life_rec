@@ -1,5 +1,10 @@
 package com.example.liferec;
 
+/*
+ * this file is based on: 
+ * https://github.com/vanevery/Custom-Video-Capture-with-Preview
+ */
+
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -16,6 +21,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -53,15 +59,16 @@ public class VideoCapture extends Activity implements SurfaceHolder.Callback {
 		holder.addCallback(this);
 		holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
-/*
+//*
 		cameraView.setClickable(true);
 		cameraView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				Log.v(LOGTAG, "clicked");
+				finish();
 			}
 		});
-*/
+//*/
 	}
 
 	private String getVideoFilename(String extension) {

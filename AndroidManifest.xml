@@ -28,6 +28,19 @@
 			android:screenOrientation="landscape"
           	android:label="@string/app_name">
         </activity>
+
+		<activity
+		  android:name="com.dropbox.client2.android.AuthActivity"
+		  android:launchMode="singleTask"
+		  android:configChanges="orientation|keyboard">
+		  <intent-filter>
+		    <!-- Change this to be db- followed by your app key -->
+		    <data android:scheme="db-w9yk4p1soc99gdu" />
+		    <action android:name="android.intent.action.VIEW" />
+		    <category android:name="android.intent.category.BROWSABLE"/>
+		    <category android:name="android.intent.category.DEFAULT" />
+		  </intent-filter>
+		</activity>
         
     </application>
 
